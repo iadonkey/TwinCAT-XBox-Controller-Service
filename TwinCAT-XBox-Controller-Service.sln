@@ -1,0 +1,51 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.2.32519.379
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TwinCAT-XBox-Controller-Service", "TwinCAT-XBox-Controller-Service\TwinCAT-XBox-Controller-Service.csproj", "{808757F5-B322-4C1D-B9CA-6644450DB154}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "XBox-XInput", "XBox-XInput\XBox-XInput.vcxproj", "{9F583A33-738D-4DCC-8566-E2689F78911E}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
+		Release|Any CPU = Release|Any CPU
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{808757F5-B322-4C1D-B9CA-6644450DB154}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{808757F5-B322-4C1D-B9CA-6644450DB154}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{808757F5-B322-4C1D-B9CA-6644450DB154}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{808757F5-B322-4C1D-B9CA-6644450DB154}.Debug|x64.Build.0 = Debug|Any CPU
+		{808757F5-B322-4C1D-B9CA-6644450DB154}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{808757F5-B322-4C1D-B9CA-6644450DB154}.Debug|x86.Build.0 = Debug|Any CPU
+		{808757F5-B322-4C1D-B9CA-6644450DB154}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{808757F5-B322-4C1D-B9CA-6644450DB154}.Release|Any CPU.Build.0 = Release|Any CPU
+		{808757F5-B322-4C1D-B9CA-6644450DB154}.Release|x64.ActiveCfg = Release|Any CPU
+		{808757F5-B322-4C1D-B9CA-6644450DB154}.Release|x64.Build.0 = Release|Any CPU
+		{808757F5-B322-4C1D-B9CA-6644450DB154}.Release|x86.ActiveCfg = Release|Any CPU
+		{808757F5-B322-4C1D-B9CA-6644450DB154}.Release|x86.Build.0 = Release|Any CPU
+		{9F583A33-738D-4DCC-8566-E2689F78911E}.Debug|Any CPU.ActiveCfg = Debug|x64
+		{9F583A33-738D-4DCC-8566-E2689F78911E}.Debug|Any CPU.Build.0 = Debug|x64
+		{9F583A33-738D-4DCC-8566-E2689F78911E}.Debug|x64.ActiveCfg = Debug|x64
+		{9F583A33-738D-4DCC-8566-E2689F78911E}.Debug|x64.Build.0 = Debug|x64
+		{9F583A33-738D-4DCC-8566-E2689F78911E}.Debug|x86.ActiveCfg = Debug|Win32
+		{9F583A33-738D-4DCC-8566-E2689F78911E}.Debug|x86.Build.0 = Debug|Win32
+		{9F583A33-738D-4DCC-8566-E2689F78911E}.Release|Any CPU.ActiveCfg = Release|x64
+		{9F583A33-738D-4DCC-8566-E2689F78911E}.Release|Any CPU.Build.0 = Release|x64
+		{9F583A33-738D-4DCC-8566-E2689F78911E}.Release|x64.ActiveCfg = Release|x64
+		{9F583A33-738D-4DCC-8566-E2689F78911E}.Release|x64.Build.0 = Release|x64
+		{9F583A33-738D-4DCC-8566-E2689F78911E}.Release|x86.ActiveCfg = Release|Win32
+		{9F583A33-738D-4DCC-8566-E2689F78911E}.Release|x86.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {1AB00A62-B44F-4326-8D87-9E8913A55986}
+	EndGlobalSection
+EndGlobal
