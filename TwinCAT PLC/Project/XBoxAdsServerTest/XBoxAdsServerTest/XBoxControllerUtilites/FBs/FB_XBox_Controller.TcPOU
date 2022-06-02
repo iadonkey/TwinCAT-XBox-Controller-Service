@@ -1,0 +1,403 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.11">
+  <POU Name="FB_XBox_Controller" Id="{16e61ff8-1d18-479b-8b07-5a4f238667a6}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_XBox_Controller
+VAR
+	{attribute 'hide'}
+	_AmsNetId : T_AMSNETID;
+	{attribute 'hide'}
+	_WriteServerData : ADSWRITE;
+	{attribute 'hide'}
+	_ReadServerData : ADSREAD;
+	{attribute 'hide'}
+	_stXBoxControllerInputs : ST_XBox_Controller_ADS_Inputs;
+	{attribute 'hide'}
+	_stRumble : ST_XBox_Controller_Rumble;
+	{attribute 'hide'}
+	_IDXGRP : UDINT;
+	{attribute 'hide'}
+	_rumbleCommand : ST_XBox_Class_Command_Status;
+	{attribute 'hide'}
+	_stControllerButtons 	: ST_XBox_Controller_Buttons;
+	{attribute 'hide'}
+	_stControllerStatus		: ST_XBox_Controller_Status;
+	{attribute 'hide'}
+	_stLeftJoystick 		: ST_XBox_Controller_Joystick;
+	{attribute 'hide'}
+	_stRightJoystick 		: ST_XBox_Controller_Joystick;
+	{attribute 'hide'}
+	_fLeftTrigger 			: REAL;
+	{attribute 'hide'}
+	_fRightTrigger 			: REAL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="Cycle" Id="{c4c654fa-155e-401b-8a85-1aefc3ab660f}">
+      <Declaration><![CDATA[// This method is called cyclically to update the controller inputs
+METHOD Cycle : BOOL
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Read the current inputs
+THIS^._ReadServerData(
+	NETID:= THIS^._AmsNetId, 
+	PORT:= 25733, 
+	IDXGRP:= THIS^._IDXGRP, 
+	IDXOFFS:= 0, 
+	LEN:= SIZEOF(THIS^._stXBoxControllerInputs), 
+	DESTADDR:= ADR(THIS^._stXBoxControllerInputs), 
+	READ:= TRUE, 
+	TMOUT:= T#5S,
+	ERR=>);
+	
+// If there is an error in reading from the server, shut all inputs off
+IF THIS^._ReadServerData.ERR THEN
+	memset(ADR(THIS^._stXBoxControllerInputs), 0, SIZEOF(THIS^._stXBoxControllerInputs));
+END_IF
+
+THIS^._ReadServerData(
+	NETID:= THIS^._AmsNetId, 
+	PORT:= 25733, 
+	IDXGRP:= THIS^._IDXGRP, 
+	IDXOFFS:= 0, 
+	LEN:= SIZEOF(THIS^._stXBoxControllerInputs), 
+	DESTADDR:= ADR(THIS^._stXBoxControllerInputs), 
+	READ:= FALSE, 
+	TMOUT:= T#5S,
+	ERR=>);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_init" Id="{5ca1819e-d48f-4374-9f4b-b509d7da22ed}">
+      <Declaration><![CDATA[METHOD FB_init : BOOL
+VAR_INPUT
+	bInitRetains : BOOL; // if TRUE, the retain variables are initialized (warm start / cold start)
+	bInCopyCode : BOOL;  // if TRUE, the instance afterwards gets moved into the copy code (online change)
+	NetID 				: T_AMSNETID := ''; // AMS Net ID of the XBox Service Provider
+	iControllerNumber 	: UINT(1..4) := 1; // The controller number for the controller you'd like to use
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^._AmsNetId := NetID;
+THIS^._IDXGRP := iControllerNumber * 16#10000;]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="P_Buttons" Id="{9ecee726-55c8-4ab8-9170-a864e7a68da5}">
+      <Declaration><![CDATA[// Structure of the different active buttons
+PROPERTY P_Buttons : REFERENCE TO ST_XBox_Controller_Buttons]]></Declaration>
+      <Get Name="Get" Id="{fabea6d4-f972-48bb-9b75-17006ffd152b}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IF THIS^._stXBoxControllerInputs.bStatus.xConnected THEN	
+	THIS^._stControllerButtons.DPad.bUp				:= THIS^._stXBoxControllerInputs.bButtons.xDPAD_UP;
+	THIS^._stControllerButtons.DPad.bDown			:= THIS^._stXBoxControllerInputs.bButtons.xDPAD_DOWN;
+	THIS^._stControllerButtons.DPad.bLeft			:= THIS^._stXBoxControllerInputs.bButtons.xDPAD_LEFT;
+	THIS^._stControllerButtons.DPad.bRight			:= THIS^._stXBoxControllerInputs.bButtons.xDPAD_RIGHT;
+	THIS^._stControllerButtons.bStart  				:= THIS^._stXBoxControllerInputs.bButtons.xSTART;
+	THIS^._stControllerButtons.bBack  				:= THIS^._stXBoxControllerInputs.bButtons.xBACK;
+	THIS^._stControllerButtons.bLeft_Thumbstick  	:= THIS^._stXBoxControllerInputs.bButtons.xLEFT_THUMB;
+	THIS^._stControllerButtons.bRight_Thumbstick 	:= THIS^._stXBoxControllerInputs.bButtons.xRIGHT_THUMB;
+	THIS^._stControllerButtons.bLeft_Shoulder  		:= THIS^._stXBoxControllerInputs.bButtons.xLEFT_SHOULDER;
+	THIS^._stControllerButtons.bRight_Shoulder  	:= THIS^._stXBoxControllerInputs.bButtons.xRIGHT_SHOULDER;
+	THIS^._stControllerButtons.bA_Button  			:= THIS^._stXBoxControllerInputs.bButtons.xA;
+	THIS^._stControllerButtons.bB_Button  			:= THIS^._stXBoxControllerInputs.bButtons.xB;
+	THIS^._stControllerButtons.bX_Button  			:= THIS^._stXBoxControllerInputs.bButtons.xX;
+	THIS^._stControllerButtons.bY_Button  			:= THIS^._stXBoxControllerInputs.bButtons.xY;
+ELSE
+	THIS^._stControllerButtons.DPad.bUp				:= FALSE;
+	THIS^._stControllerButtons.DPad.bDown			:= FALSE;
+	THIS^._stControllerButtons.DPad.bLeft			:= FALSE;
+	THIS^._stControllerButtons.DPad.bRight			:= FALSE;
+	THIS^._stControllerButtons.bStart  				:= FALSE;
+	THIS^._stControllerButtons.bBack  				:= FALSE;
+	THIS^._stControllerButtons.bLeft_Thumbstick  	:= FALSE;
+	THIS^._stControllerButtons.bRight_Thumbstick 	:= FALSE;
+	THIS^._stControllerButtons.bLeft_Shoulder  		:= FALSE;
+	THIS^._stControllerButtons.bRight_Shoulder  	:= FALSE;
+	THIS^._stControllerButtons.bA_Button  			:= FALSE;
+	THIS^._stControllerButtons.bB_Button  			:= FALSE;
+	THIS^._stControllerButtons.bX_Button  			:= FALSE;
+	THIS^._stControllerButtons.bY_Button  			:= FALSE;
+END_IF
+P_Buttons REF= THIS^._stControllerButtons;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="P_Left_Joystick" Id="{33db2771-a51a-47cd-87e9-82222a82ae74}">
+      <Declaration><![CDATA[// Returns a structure of data for the XY Joystick values
+PROPERTY P_Left_Joystick : REFERENCE TO ST_XBox_Controller_Joystick]]></Declaration>
+      <Get Name="Get" Id="{4b140f7b-8969-4350-962e-103fcb9f7ed9}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IF THIS^._stXBoxControllerInputs.bStatus.xConnected THEN	
+	THIS^._stLeftJoystick.fX := THIS^._stXBoxControllerInputs.stLeft_Joystick.fX;
+	THIS^._stLeftJoystick.fY := THIS^._stXBoxControllerInputs.stLeft_Joystick.fY;
+ELSE
+	THIS^._stLeftJoystick.fX := 0;
+	THIS^._stLeftJoystick.fY := 0;
+END_IF
+P_Left_Joystick REF= THIS^._stLeftJoystick;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="P_Left_Trigger" Id="{4760222a-9195-417e-97df-e345197e8a07}">
+      <Declaration><![CDATA[// Left trigger value
+PROPERTY P_Left_Trigger : REFERENCE TO REAL]]></Declaration>
+      <Get Name="Get" Id="{1906a11d-9ff5-4e03-b10e-492065686575}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IF THIS^._stXBoxControllerInputs.bStatus.xConnected THEN	
+	THIS^._fLeftTrigger := THIS^._stXBoxControllerInputs.fLeft_Trigger;
+ELSE
+	THIS^._fLeftTrigger := 0;
+END_IF
+P_Left_Trigger REF= THIS^._fLeftTrigger;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="P_Right_Joystick" Id="{e8db0053-5241-40a3-8cab-5544d5c2006b}">
+      <Declaration><![CDATA[// Returns a structure of data for the XY Joystick values
+PROPERTY P_Right_Joystick : REFERENCE TO ST_XBox_Controller_Joystick]]></Declaration>
+      <Get Name="Get" Id="{0e92480b-9055-499c-897c-becbad0c9d16}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IF THIS^._stXBoxControllerInputs.bStatus.xConnected THEN	
+	THIS^._stRightJoystick.fX := THIS^._stXBoxControllerInputs.stRight_Joystick.fX;
+	THIS^._stRightJoystick.fY := THIS^._stXBoxControllerInputs.stRight_Joystick.fY;
+ELSE
+	THIS^._stRightJoystick.fX := 0;
+	THIS^._stRightJoystick.fY := 0;
+END_IF
+P_Right_Joystick REF= THIS^._stRightJoystick;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="P_Right_Trigger" Id="{78732f9d-af31-4e4c-821e-1f8189aa19ee}">
+      <Declaration><![CDATA[// Right trigger value
+PROPERTY P_Right_Trigger : REFERENCE TO REAL]]></Declaration>
+      <Get Name="Get" Id="{f85af2b8-09ba-4400-a23b-f2e4aab2e32c}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IF THIS^._stXBoxControllerInputs.bStatus.xConnected THEN	
+	THIS^._fRightTrigger := THIS^._stXBoxControllerInputs.fRight_Trigger;
+ELSE
+	THIS^._fRightTrigger := 0;
+END_IF
+P_Right_Trigger REF= THIS^._fRightTrigger;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="P_SetRumble" Id="{e951a137-f153-4333-bf9b-6c5d979a71f2}">
+      <Declaration><![CDATA[// Status of the SetRumble method
+PROPERTY P_SetRumble : REFERENCE TO ST_XBox_Class_Command_Status]]></Declaration>
+      <Get Name="Get" Id="{1009e700-d671-4ebf-b638-5a140a7d5a04}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[P_SetRumble REF= THIS^._rumbleCommand;
+
+]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="P_Status" Id="{9862bf27-d17e-48b2-b703-c886caf0e3f2}">
+      <Declaration><![CDATA[// Structure of the controller capabilites and status
+PROPERTY P_Status : REFERENCE TO ST_XBox_Controller_Status]]></Declaration>
+      <Get Name="Get" Id="{dabe201a-2054-48fe-a490-6ba481e4db51}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IF THIS^._stXBoxControllerInputs.bStatus.xConnected THEN	
+	THIS^._stControllerStatus.bConnected 		:= TRUE;
+	THIS^._stControllerStatus.bDisconnected 	:= FALSE;
+	THIS^._stControllerStatus.iControllerNumber := THIS^._stXBoxControllerInputs.iControllerNumber;
+ELSE
+	THIS^._stControllerStatus.bConnected 		:= FALSE;
+	THIS^._stControllerStatus.bDisconnected 	:= TRUE;
+	THIS^._stControllerStatus.iControllerNumber := 0;
+END_IF
+P_Status REF= THIS^._stControllerStatus;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Method Name="SetRumble" Id="{321f1c4d-4b89-4b24-88d5-c2d524fc2f0a}">
+      <Declaration><![CDATA[// Sets the rumble for the controller
+METHOD SetRumble : BOOL
+VAR_INPUT
+	// Left motor speed (0..100%)
+	fLeftMotor : REAL;
+	// Right motor speed (0..100%)
+	fRightMotor : REAL;
+END_VAR
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[memset(ADR(THIS^._rumbleCommand), 0, SIZEOF(THIS^._rumbleCommand));
+
+// Check if the value is within range
+IF fLeftMotor > 100 THEN
+	THIS^._stRumble.fLeftMotor := 100.0;
+ELSIF fLeftMotor < 0 THEN
+	THIS^._stRumble.fLeftMotor := 0.0;
+ELSE
+	THIS^._stRumble.fLeftMotor := fLeftMotor;
+END_IF
+
+// Check if the value is within range
+IF fRightMotor > 100 THEN
+	THIS^._stRumble.fRightMotor := 100.0;
+ELSIF fRightMotor < 0 THEN
+	THIS^._stRumble.fRightMotor := 0.0;
+ELSE
+	THIS^._stRumble.fRightMotor := fRightMotor;
+END_IF
+
+// Write the new values
+THIS^._WriteServerData(
+	NETID:= THIS^._AmsNetId, 
+	PORT:= 25733, 
+	IDXGRP:= THIS^._IDXGRP, 
+	IDXOFFS:= 16, 
+	LEN:= SIZEOF(THIS^._stRumble), 
+	SRCADDR:= ADR(THIS^._stRumble), 
+	WRITE:= TRUE, 
+	TMOUT:= T#5S);
+
+// Check if it's done writing
+IF THIS^._WriteServerData.WRITE AND NOT THIS^._WriteServerData.BUSY THEN
+	IF NOT THIS^._WriteServerData.ERR THEN
+		// Set the done bits true
+		THIS^._rumbleCommand.bDone := TRUE;	
+		SetRumble := TRUE;
+	END_IF
+
+	// Turn off the write request
+	THIS^._WriteServerData(
+		NETID:= THIS^._AmsNetId, 
+		PORT:= 25733, 
+		IDXGRP:= THIS^._IDXGRP, 
+		IDXOFFS:= 16, 
+		LEN:= SIZEOF(THIS^._stRumble), 
+		SRCADDR:= ADR(THIS^._stRumble), 
+		WRITE:= FALSE, 
+		TMOUT:= T#5S);
+END_IF
+
+// Set the busy and error bits
+THIS^._rumbleCommand.bBusy := THIS^._WriteServerData.BUSY;
+THIS^._rumbleCommand.bError := THIS^._WriteServerData.ERR;
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_XBox_Controller">
+      <LineId Id="9" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_XBox_Controller.Cycle">
+      <LineId Id="41" Count="0" />
+      <LineId Id="6" Count="8" />
+      <LineId Id="16" Count="1" />
+      <LineId Id="40" Count="0" />
+      <LineId Id="36" Count="1" />
+      <LineId Id="30" Count="0" />
+      <LineId Id="38" Count="0" />
+      <LineId Id="19" Count="8" />
+      <LineId Id="18" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_XBox_Controller.FB_init">
+      <LineId Id="7" Count="0" />
+      <LineId Id="15" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_XBox_Controller.P_Buttons.Get">
+      <LineId Id="2" Count="0" />
+      <LineId Id="30" Count="0" />
+      <LineId Id="27" Count="2" />
+      <LineId Id="17" Count="9" />
+      <LineId Id="31" Count="0" />
+      <LineId Id="33" Count="12" />
+      <LineId Id="32" Count="0" />
+      <LineId Id="16" Count="0" />
+      <LineId Id="48" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_XBox_Controller.P_Left_Joystick.Get">
+      <LineId Id="5" Count="0" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="35" Count="0" />
+      <LineId Id="20" Count="0" />
+      <LineId Id="36" Count="0" />
+      <LineId Id="34" Count="0" />
+      <LineId Id="2" Count="0" />
+      <LineId Id="39" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_XBox_Controller.P_Left_Trigger.Get">
+      <LineId Id="5" Count="3" />
+      <LineId Id="2" Count="0" />
+      <LineId Id="11" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_XBox_Controller.P_Right_Joystick.Get">
+      <LineId Id="13" Count="6" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_XBox_Controller.P_Right_Trigger.Get">
+      <LineId Id="13" Count="4" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_XBox_Controller.P_SetRumble.Get">
+      <LineId Id="6" Count="1" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_XBox_Controller.P_Status.Get">
+      <LineId Id="5" Count="0" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="35" Count="1" />
+      <LineId Id="20" Count="0" />
+      <LineId Id="37" Count="1" />
+      <LineId Id="34" Count="0" />
+      <LineId Id="2" Count="0" />
+      <LineId Id="41" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_XBox_Controller.SetRumble">
+      <LineId Id="110" Count="1" />
+      <LineId Id="106" Count="0" />
+      <LineId Id="78" Count="1" />
+      <LineId Id="81" Count="0" />
+      <LineId Id="83" Count="1" />
+      <LineId Id="82" Count="0" />
+      <LineId Id="80" Count="0" />
+      <LineId Id="109" Count="0" />
+      <LineId Id="85" Count="0" />
+      <LineId Id="87" Count="5" />
+      <LineId Id="86" Count="0" />
+      <LineId Id="112" Count="0" />
+      <LineId Id="104" Count="0" />
+      <LineId Id="44" Count="8" />
+      <LineId Id="108" Count="0" />
+      <LineId Id="62" Count="0" />
+      <LineId Id="36" Count="0" />
+      <LineId Id="113" Count="0" />
+      <LineId Id="116" Count="1" />
+      <LineId Id="114" Count="1" />
+      <LineId Id="103" Count="0" />
+      <LineId Id="105" Count="0" />
+      <LineId Id="68" Count="7" />
+      <LineId Id="67" Count="0" />
+      <LineId Id="65" Count="0" />
+      <LineId Id="118" Count="0" />
+      <LineId Id="76" Count="1" />
+      <LineId Id="63" Count="0" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>
