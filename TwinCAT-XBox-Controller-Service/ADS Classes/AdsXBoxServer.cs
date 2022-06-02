@@ -10,31 +10,49 @@ using Microsoft.Extensions.Logging;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Buffers.Binary;
-using System.Runtime.InteropServices;
 
 namespace TwinCAT_XBox_Controller_Service
 {
     /*
-     * Extend the TcAdsServer class to implement your own ADS server.
+     * Extend the TcAdsServer class to implement ADS Server
      */
     public class AdsXBoxServer : AdsServer
     {
-
-        //const string DLL_PATH = "XBox-XInput.dll";
-        const string DLL_PATH = @"C:\Users\John Helfrich\source\repos\TwinCAT-XBox-Controller-Service\x64\Debug\XBox-XInput.dll";
-
-        [DllImport(DLL_PATH)]
-        static public extern IntPtr CreateGamepad(int GamepadIndex);
-
-        [DllImport(DLL_PATH)]
-        static public extern void DisposeGamepad(IntPtr pGamepadObject);
+        /*
+         * Interop methods - Calling C++ based DLL for XInput Services
+         * 
+         */
+        // DLL Import Path
+        const string DLL_PATH = "XBox-XInput.dll";
 
         [DllImport(DLL_PATH)]
-        static public extern int getIndex(IntPtr pGamepadObject);
-
+        static public extern IntPtr CreateGamepad(int GamepadIndex);            // Create a gamepad
         [DllImport(DLL_PATH)]
-        static public extern bool getConnected(IntPtr pGamepadObject);
-
+        static public extern void DisposeGamepad(IntPtr pGamepadObject);        // Destroy the gamepad instance
+        [DllImport(DLL_PATH)]
+        static public extern int GetIndex(IntPtr pGamepadObject);               // Return gamepad index
+        [DllImport(DLL_PATH)]
+        static public extern bool GetConnected(IntPtr pGamepadObject);          // Return true if gamepad is connected
+        [DllImport(DLL_PATH)]
+        static public extern void UpdateInputs(IntPtr pGamepadObject);          // Updates the m_State for the controller at that moment
+        [DllImport(DLL_PATH)]
+        static public extern float GetLeftStick_X(IntPtr pGamepadObject);       // Returns the X value for the left stick
+        [DllImport(DLL_PATH)]
+        static public extern float GetLeftStick_Y(IntPtr pGamepadObject);       // Returns the Y value for the left stick
+        [DllImport(DLL_PATH)]
+        static public extern float GetRightStick_X(IntPtr pGamepadObject);      // Returns the X value for the right stick
+        [DllImport(DLL_PATH)]
+        static public extern float GetRightStick_Y(IntPtr pGamepadObject);      // Returns the Y value for the right stick
+        [DllImport(DLL_PATH)]
+        static public extern float GetLeftTrigger(IntPtr pGamepadObject);       // Returns the left trigger value
+        [DllImport(DLL_PATH)]
+        static public extern float GetRightTrigger(IntPtr pGamepadObject);      // Returns the right trigger value
+        [DllImport(DLL_PATH)]
+        static public extern short GetGamepadButtons(IntPtr pGamepadObject);    // Returns the button values
+        [DllImport(DLL_PATH)]
+        static public extern short GetGamepadStates(IntPtr pGamepadObject);     // Returns information about the gamepad state
+        [DllImport(DLL_PATH)]
+        static public extern void SetRumble(IntPtr pGamepadObject, float leftMotor = 0.0f, float rightMotor = 0.0f);
 
         /* Joystick Varaible Struct */
         private struct XBox_Controller_Joystick
@@ -42,47 +60,46 @@ namespace TwinCAT_XBox_Controller_Service
             public float x;
             public float y;
         }
+
         /* XBox/ADS Input Variable Struct */
         private struct ADS_XBox_Inputs
         {
-            public int gamepadIndex;
-            public XBox_Controller_Joystick left_Joystick;
-            public XBox_Controller_Joystick right_Joystick;
-            public float left_Trigger;
-            public float right_Trigger;
-            public short buttons;
-            public short state;
+           public int gamepadIndex;
+           public XBox_Controller_Joystick left_Joystick;
+           public XBox_Controller_Joystick right_Joystick;
+           public float left_Trigger;
+           public float right_Trigger;
+           public short buttons;
+           public short state;
         }
 
-        private ADS_XBox_Inputs _xbox_inputs;
-        private IServerLogger _serverLogger;
-        private IntPtr[] _pGamepads;
-
+        private IServerLogger serverLogger;
+        private IntPtr[] pGamepads;
 
         /* Instanstiate an ADS server with a fix ADS port assigned by the ADS router.
         */
         public AdsXBoxServer(ushort port, string portName, ILogger logger) : base(port, portName, logger)
         {
-            _serverLogger = new ServerLogger(logger);
-
+            serverLogger = new ServerLogger(logger);
+            pGamepads = new IntPtr[] { CreateGamepad(0), CreateGamepad(1), CreateGamepad(2), CreateGamepad(3) };
         }
+
+        ~AdsXBoxServer()
+        {
+            // Destruct Gamepads
+            for (int i = 0; i < 4; i++)
+            {
+                DisposeGamepad(pGamepads[i]);
+                pGamepads[i] = IntPtr.Zero;
+            }
+        }
+
 
         /* Diagnostics output for the server
         */
         protected override void OnConnected()
         {
-
-            _serverLogger.Logger.LogInformation($"Server '{this.GetType()}', Address: {base.ServerAddress} connected!");
-            _pGamepads = new IntPtr[] { CreateGamepad(0), CreateGamepad(1), CreateGamepad(2), CreateGamepad(3) };
-
-            for (int i = 0; i < 4; i++)
-            {
-                Console.WriteLine("Gamepad Number:\t\t" + (getIndex(_pGamepads[i]) + 1));
-                Console.WriteLine("Gamepad Connected?\t" + getConnected(_pGamepads[i]));
-
-                DisposeGamepad(_pGamepads[i]);
-                _pGamepads[i] = IntPtr.Zero;
-            }
+            serverLogger.Logger.LogInformation($"Server '{this.GetType()}', Address: {base.ServerAddress} connected!");
         }
 
         /* Writing values from the client to this server
@@ -90,14 +107,17 @@ namespace TwinCAT_XBox_Controller_Service
         protected override Task<ResultWrite> OnWriteAsync(uint indexGroup, uint indexOffset, ReadOnlyMemory<byte> writeData, CancellationToken cancel)
         {
             ResultWrite result = ResultWrite.CreateError(AdsErrorCode.DeviceServiceNotSupported);
-        
-            switch (indexGroup) /* use index group (and offset) to distinguish between the services
-                                    of this server */
+            /* use index group (and offset) to distinguish between the servicesof this server */
+            switch (indexGroup + indexOffset) 
             {
-                case 0x10000:
-                    if (writeData.Length == 4)
+                case 0x10010:
+                    if (writeData.Length == 8 && GetConnected(pGamepads[0]))
                     {
-                        //writeData.CopyTo(_dataBuffer.AsMemory(0, 4));
+                        byte[] _dataBuffer = new byte[8];
+                        writeData.CopyTo(_dataBuffer.AsMemory(0, 8));
+                        float left_Motor = System.BitConverter.ToSingle(_dataBuffer, 0);
+                        float right_Motor = System.BitConverter.ToSingle(_dataBuffer, 4);
+                        SetRumble(pGamepads[0], left_Motor / 100.0f, right_Motor / 100.0f);
                         result = ResultWrite.CreateSuccess();
                     }
                     else
@@ -105,20 +125,51 @@ namespace TwinCAT_XBox_Controller_Service
                         result = ResultWrite.CreateError(AdsErrorCode.DeviceInvalidParam);
                     }
                     break;
-                case 0x20000: /* used for the PLC Sample */
-                    if (writeData.Length == 4)
+                case 0x20010:
+                    if (writeData.Length == 8 && GetConnected(pGamepads[1]))
                     {
-                        uint value = BinaryPrimitives.ReadUInt32LittleEndian(writeData.Span.Slice(0, 4));
-        
-                        //if (_serverLogger != null)
-                        //{
-                        //    _serverLogger.Log(String.Format("PLC Counter: {0}", value));
-                        //}
+                        byte[] _dataBuffer = new byte[8];
+                        writeData.CopyTo(_dataBuffer.AsMemory(0, 8));
+                        float left_Motor = System.BitConverter.ToSingle(_dataBuffer, 0);
+                        float right_Motor = System.BitConverter.ToSingle(_dataBuffer, 4);
+                        SetRumble(pGamepads[1], left_Motor / 100.0f, right_Motor / 100.0f);
                         result = ResultWrite.CreateSuccess();
                     }
-        
+                    else
+                    {
+                        result = ResultWrite.CreateError(AdsErrorCode.DeviceInvalidParam);
+                    }
                     break;
-        
+                case 0x30010:
+                    if (writeData.Length == 8 && GetConnected(pGamepads[2]))
+                    {
+                        byte[] _dataBuffer = new byte[8];
+                        writeData.CopyTo(_dataBuffer.AsMemory(0, 8));
+                        float left_Motor = System.BitConverter.ToSingle(_dataBuffer, 0);
+                        float right_Motor = System.BitConverter.ToSingle(_dataBuffer, 4);
+                        SetRumble(pGamepads[2], left_Motor / 100.0f, right_Motor / 100.0f);
+                        result = ResultWrite.CreateSuccess();
+                    }
+                    else
+                    {
+                        result = ResultWrite.CreateError(AdsErrorCode.DeviceInvalidParam);
+                    }
+                    break;
+                case 0x40010:
+                    if (writeData.Length == 8 && GetConnected(pGamepads[3]))
+                    {
+                        byte[] _dataBuffer = new byte[8];
+                        writeData.CopyTo(_dataBuffer.AsMemory(0, 8));
+                        float left_Motor = System.BitConverter.ToSingle(_dataBuffer, 0);
+                        float right_Motor = System.BitConverter.ToSingle(_dataBuffer, 4);
+                        SetRumble(pGamepads[3], left_Motor / 100.0f, right_Motor / 100.0f);
+                        result = ResultWrite.CreateSuccess();
+                    }
+                    else
+                    {
+                        result = ResultWrite.CreateError(AdsErrorCode.DeviceInvalidParam);
+                    }
+                    break;
                 default: /* other services are not supported */
                     result = ResultWrite.CreateError(AdsErrorCode.DeviceServiceNotSupported);
                     break;
@@ -130,15 +181,32 @@ namespace TwinCAT_XBox_Controller_Service
         */
         protected override Task<ResultReadBytes> OnReadAsync(uint indexGroup, uint indexOffset, int readLength, CancellationToken cancel)
         {
-            /* Distinguish between services like in AdsWriteInd */
-
-            ResultReadBytes result = ResultReadBytes.CreateSuccess(getXBoxInputBytes(_xbox_inputs).AsMemory());
+            ResultReadBytes result;
+            /* use index group (and offset) to distinguish between the servicesof this server */
+            switch (indexGroup) 
+            {
+                case 0x10000:
+                    result = ResultReadBytes.CreateSuccess(ConvertXBoxInputBytes(GetXboxValues(pGamepads[0])).AsMemory());
+                    break;
+                case 0x20000:
+                    result = ResultReadBytes.CreateSuccess(ConvertXBoxInputBytes(GetXboxValues(pGamepads[1])).AsMemory());
+                    break;
+                case 0x30000:
+                    result = ResultReadBytes.CreateSuccess(ConvertXBoxInputBytes(GetXboxValues(pGamepads[2])).AsMemory());
+                    break;
+                case 0x40000:
+                    result = ResultReadBytes.CreateSuccess(ConvertXBoxInputBytes(GetXboxValues(pGamepads[3])).AsMemory());
+                    break;
+                default: /* other services are not supported */
+                    result = ResultReadBytes.CreateError(AdsErrorCode.DeviceInvalidGroup);        
+                    break;
+            }
             return Task.FromResult(result);
         }
 
         /* Converts the XBox Data Structure to byte array
          */
-        private byte[] getXBoxInputBytes(ADS_XBox_Inputs xbox_input_data)
+        private byte[] ConvertXBoxInputBytes(ADS_XBox_Inputs xbox_input_data)
         {
             int size = Marshal.SizeOf(xbox_input_data);
             byte[] arr = new byte[size];
@@ -150,19 +218,25 @@ namespace TwinCAT_XBox_Controller_Service
             return arr;
         }
 
-        private static short SetBit(short input, int bit)
+        /* Call the XInput methods to get the Gamepad status
+        */
+        private ADS_XBox_Inputs GetXboxValues(IntPtr pGamepads)
         {
-            return (short)(input | (1 << bit));
-        }
-
-        private static short ClearBit(short input, int bit)
-        {
-            return (short)(input & ~(1 << bit));
-        }
-
-        public void UpdateXboxValues()
-        {
-            Console.WriteLine("Updating the values");
+            ADS_XBox_Inputs xbox_inputs = new ADS_XBox_Inputs();
+            if (GetConnected(pGamepads))
+            {
+                UpdateInputs(pGamepads);
+                xbox_inputs.gamepadIndex = GetIndex(pGamepads) + 1;
+                xbox_inputs.left_Joystick.x = GetLeftStick_X(pGamepads) * 100.0f;
+                xbox_inputs.left_Joystick.y = GetLeftStick_Y(pGamepads) * 100.0f;
+                xbox_inputs.right_Joystick.x = GetRightStick_X(pGamepads) * 100.0f;
+                xbox_inputs.right_Joystick.y = GetRightStick_Y(pGamepads) * 100.0f;
+                xbox_inputs.left_Trigger = GetLeftTrigger(pGamepads) * 100.0f;
+                xbox_inputs.right_Trigger = GetRightTrigger(pGamepads) * 100.0f;
+                xbox_inputs.buttons = GetGamepadButtons(pGamepads);
+                xbox_inputs.state = GetGamepadStates(pGamepads);
+            }
+            return xbox_inputs;
         }
 
     }

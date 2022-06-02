@@ -20,26 +20,10 @@ namespace TwinCAT_XBox_Controller_Service
         protected override async Task ExecuteAsync(CancellationToken cancel)
         {
             AdsXBoxServer server = new AdsXBoxServer(25733, "XBoxAdsServer", _logger);
-            //CancellationTokenSource Canceller = new CancellationTokenSource();
 
             Task[] serverTasks = new Task[1];
 
             serverTasks[0] = server.ConnectServerAndWaitAsync(cancel);
-
-            /*Task xbox_controller_task = new Task(() =>
-            {
-                while(!Canceller.IsCancellationRequested)
-                {
-                    // Debug Messages
-                    //var threadId = Thread.CurrentThread.ManagedThreadId;
-                    //Console.WriteLine("Task Loop Current Thread Id:" + threadId);
-                    server.UpdateXboxValues();
-                }
-                if(Canceller.IsCancellationRequested)
-                    _logger.LogInformation("Shutting Down XBox Monitoring Driver.");
-            });
-
-            xbox_controller_task.Start();*/
 
             Task shutdownTask = Task.Run(async () =>
             {   
@@ -49,12 +33,9 @@ namespace TwinCAT_XBox_Controller_Service
 
             Console.WriteLine("Press enter to shutdown servers ...");
             Console.ReadLine();
-
-            
+        
             server.Disconnect();
-
             await shutdownTask; // Wait for Shutdown of Servers
-            //Canceller.Cancel();
         }
     }
 }
