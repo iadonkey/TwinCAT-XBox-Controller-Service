@@ -29,6 +29,10 @@ VAR
 	_fLeftTrigger 			: REAL;
 	{attribute 'hide'}
 	_fRightTrigger 			: REAL;
+	{attribute 'hide'}
+	_bSetRumbleEvent 		: BOOL; // Internal indication of an ADS write event
+	{attribute 'hide'}
+	_bSetRumbleEventLogged	: BOOL; // Check if the Set Rumble event is being called too many times	
 END_VAR
 ]]></Declaration>
     <Implementation>
@@ -57,6 +61,7 @@ IF THIS^._ReadServerData.ERR THEN
 	memset(ADR(THIS^._stXBoxControllerInputs), 0, SIZEOF(THIS^._stXBoxControllerInputs));
 END_IF
 
+// Stop read command
 THIS^._ReadServerData(
 	NETID:= THIS^._AmsNetId, 
 	PORT:= 25733, 
@@ -66,7 +71,45 @@ THIS^._ReadServerData(
 	DESTADDR:= ADR(THIS^._stXBoxControllerInputs), 
 	READ:= FALSE, 
 	TMOUT:= T#5S,
-	ERR=>);]]></ST>
+	ERR=>);
+	
+
+// Handle any write requests for the rumble
+// Write the new values
+THIS^._WriteServerData(
+	NETID:= THIS^._AmsNetId, 
+	PORT:= 25733, 
+	IDXGRP:= THIS^._IDXGRP, 
+	IDXOFFS:= 16, 
+	LEN:= SIZEOF(THIS^._stRumble), 
+	SRCADDR:= ADR(THIS^._stRumble), 
+	WRITE:= THIS^._bSetRumbleEvent, 
+	TMOUT:= T#5S);
+	
+// Update the status of the current command if active
+IF 	THIS^._bSetRumbleEvent THEN
+	THIS^.P_SetRumble.bBusy := THIS^._WriteServerData.BUSY;
+	THIS^.P_SetRumble.bError := THIS^._WriteServerData.ERR;
+END_IF
+
+// Check if it's done writing
+IF THIS^._bSetRumbleEvent AND NOT THIS^._WriteServerData.BUSY THEN
+	IF NOT THIS^._WriteServerData.ERR THEN
+		THIS^.P_SetRumble.bDone := TRUE;
+	END_IF
+	// Turn off the write request
+	THIS^._WriteServerData(
+		NETID:= THIS^._AmsNetId, 
+		PORT:= 25733, 
+		IDXGRP:= THIS^._IDXGRP, 
+		IDXOFFS:= 16, 
+		LEN:= SIZEOF(THIS^._stRumble), 
+		SRCADDR:= ADR(THIS^._stRumble), 
+		WRITE:= FALSE, 
+		TMOUT:= T#5S);
+		
+	THIS^._bSetRumbleEvent := FALSE;
+END_IF]]></ST>
       </Implementation>
     </Method>
     <Method Name="FB_init" Id="{5ca1819e-d48f-4374-9f4b-b509d7da22ed}">
@@ -242,63 +285,51 @@ VAR_INPUT
 	// Right motor speed (0..100%)
 	fRightMotor : REAL;
 END_VAR
-
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[memset(ADR(THIS^._rumbleCommand), 0, SIZEOF(THIS^._rumbleCommand));
-
-// Check if the value is within range
-IF fLeftMotor > 100 THEN
-	THIS^._stRumble.fLeftMotor := 100.0;
-ELSIF fLeftMotor < 0 THEN
-	THIS^._stRumble.fLeftMotor := 0.0;
+        <ST><![CDATA[// When the method is called, check if a write is in progress
+IF THIS^._bSetRumbleEvent THEN
+	// ADS you are doing that too much
+	IF NOT THIS^._bSetRumbleEventLogged THEN
+		ADSLOGSTR( msgCtrlMask := ADSLOG_MSGTYPE_WARN, msgFmtStr := 'PLC Msg.: Command being called too often, wait for done bit: %s', strArg := 'SetRumble()');
+		THIS^._bSetRumbleEventLogged := TRUE;
+	END_IF	
 ELSE
-	THIS^._stRumble.fLeftMotor := fLeftMotor;
-END_IF
-
-// Check if the value is within range
-IF fRightMotor > 100 THEN
-	THIS^._stRumble.fRightMotor := 100.0;
-ELSIF fRightMotor < 0 THEN
-	THIS^._stRumble.fRightMotor := 0.0;
-ELSE
-	THIS^._stRumble.fRightMotor := fRightMotor;
-END_IF
-
-// Write the new values
-THIS^._WriteServerData(
-	NETID:= THIS^._AmsNetId, 
-	PORT:= 25733, 
-	IDXGRP:= THIS^._IDXGRP, 
-	IDXOFFS:= 16, 
-	LEN:= SIZEOF(THIS^._stRumble), 
-	SRCADDR:= ADR(THIS^._stRumble), 
-	WRITE:= TRUE, 
-	TMOUT:= T#5S);
-
-// Check if it's done writing
-IF THIS^._WriteServerData.WRITE AND NOT THIS^._WriteServerData.BUSY THEN
-	IF NOT THIS^._WriteServerData.ERR THEN
-		// Set the done bits true
-		THIS^._rumbleCommand.bDone := TRUE;	
-		SetRumble := TRUE;
+	// Check if the value is within range
+	IF fLeftMotor > 100 THEN
+		THIS^._stRumble.fLeftMotor := 100.0;
+	ELSIF fLeftMotor < 0 THEN
+		THIS^._stRumble.fLeftMotor := 0.0;
+	ELSE
+		THIS^._stRumble.fLeftMotor := fLeftMotor;
 	END_IF
+	
+	// Check if the value is within range
+	IF fRightMotor > 100 THEN
+		THIS^._stRumble.fRightMotor := 100.0;
+	ELSIF fRightMotor < 0 THEN
+		THIS^._stRumble.fRightMotor := 0.0;
+	ELSE
+		THIS^._stRumble.fRightMotor := fRightMotor;
+	END_IF
+	
+	//Reset all status for the command
+	THIS^.P_SetRumble.bDone := FALSE;
+	THIS^.P_SetRumble.bBusy := FALSE;
+	THIS^.P_SetRumble.bError := FALSE;
 
-	// Turn off the write request
-	THIS^._WriteServerData(
-		NETID:= THIS^._AmsNetId, 
-		PORT:= 25733, 
-		IDXGRP:= THIS^._IDXGRP, 
-		IDXOFFS:= 16, 
-		LEN:= SIZEOF(THIS^._stRumble), 
-		SRCADDR:= ADR(THIS^._stRumble), 
-		WRITE:= FALSE, 
-		TMOUT:= T#5S);
+	// Set the high bit on the write command
+	THIS^._bSetRumbleEvent := TRUE;
 END_IF
 
-// Set the busy and error bits
-THIS^._rumbleCommand.bBusy := THIS^._WriteServerData.BUSY;
-THIS^._rumbleCommand.bError := THIS^._WriteServerData.ERR;
+// If it's done, set the current even in progress to false
+IF P_SetRumble.bDone THEN
+	THIS^._bSetRumbleEvent := FALSE;
+END_IF
+
+// Event Received
+SetRumble := THIS^._bSetRumbleEvent;
+
 ]]></ST>
       </Implementation>
     </Method>
@@ -312,9 +343,28 @@ THIS^._rumbleCommand.bError := THIS^._WriteServerData.ERR;
       <LineId Id="40" Count="0" />
       <LineId Id="36" Count="1" />
       <LineId Id="30" Count="0" />
+      <LineId Id="45" Count="0" />
       <LineId Id="38" Count="0" />
       <LineId Id="19" Count="8" />
       <LineId Id="18" Count="0" />
+      <LineId Id="46" Count="0" />
+      <LineId Id="87" Count="0" />
+      <LineId Id="47" Count="0" />
+      <LineId Id="49" Count="8" />
+      <LineId Id="48" Count="0" />
+      <LineId Id="94" Count="0" />
+      <LineId Id="97" Count="0" />
+      <LineId Id="58" Count="0" />
+      <LineId Id="90" Count="0" />
+      <LineId Id="96" Count="0" />
+      <LineId Id="91" Count="0" />
+      <LineId Id="95" Count="0" />
+      <LineId Id="69" Count="1" />
+      <LineId Id="98" Count="2" />
+      <LineId Id="77" Count="9" />
+      <LineId Id="89" Count="0" />
+      <LineId Id="88" Count="0" />
+      <LineId Id="59" Count="0" />
     </LineIds>
     <LineIds Name="FB_XBox_Controller.FB_init">
       <LineId Id="7" Count="0" />
@@ -369,34 +419,28 @@ THIS^._rumbleCommand.bError := THIS^._WriteServerData.ERR;
       <LineId Id="41" Count="0" />
     </LineIds>
     <LineIds Name="FB_XBox_Controller.SetRumble">
-      <LineId Id="110" Count="1" />
-      <LineId Id="106" Count="0" />
-      <LineId Id="78" Count="1" />
-      <LineId Id="81" Count="0" />
-      <LineId Id="83" Count="1" />
-      <LineId Id="82" Count="0" />
+      <LineId Id="154" Count="0" />
+      <LineId Id="145" Count="1" />
+      <LineId Id="184" Count="1" />
+      <LineId Id="187" Count="0" />
+      <LineId Id="186" Count="0" />
+      <LineId Id="147" Count="0" />
+      <LineId Id="162" Count="6" />
+      <LineId Id="156" Count="0" />
+      <LineId Id="161" Count="0" />
+      <LineId Id="169" Count="7" />
+      <LineId Id="178" Count="2" />
+      <LineId Id="157" Count="0" />
+      <LineId Id="181" Count="1" />
+      <LineId Id="177" Count="0" />
+      <LineId Id="148" Count="1" />
+      <LineId Id="155" Count="0" />
+      <LineId Id="150" Count="2" />
+      <LineId Id="142" Count="0" />
+      <LineId Id="183" Count="0" />
+      <LineId Id="111" Count="0" />
       <LineId Id="80" Count="0" />
       <LineId Id="109" Count="0" />
-      <LineId Id="85" Count="0" />
-      <LineId Id="87" Count="5" />
-      <LineId Id="86" Count="0" />
-      <LineId Id="112" Count="0" />
-      <LineId Id="104" Count="0" />
-      <LineId Id="44" Count="8" />
-      <LineId Id="108" Count="0" />
-      <LineId Id="62" Count="0" />
-      <LineId Id="36" Count="0" />
-      <LineId Id="113" Count="0" />
-      <LineId Id="116" Count="1" />
-      <LineId Id="114" Count="1" />
-      <LineId Id="103" Count="0" />
-      <LineId Id="105" Count="0" />
-      <LineId Id="68" Count="7" />
-      <LineId Id="67" Count="0" />
-      <LineId Id="65" Count="0" />
-      <LineId Id="118" Count="0" />
-      <LineId Id="76" Count="1" />
-      <LineId Id="63" Count="0" />
       <LineId Id="5" Count="0" />
     </LineIds>
   </POU>

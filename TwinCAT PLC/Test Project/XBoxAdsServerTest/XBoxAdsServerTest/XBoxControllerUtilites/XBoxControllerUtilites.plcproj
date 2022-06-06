@@ -15,19 +15,34 @@
     <Implicit_KindOfTask>{ec33f40a-38b1-4f47-b035-4948881af551}</Implicit_KindOfTask>
     <Implicit_Jitter_Distribution>{673d9bc9-90e3-4e65-bbc4-0c8a1ffdd8f1}</Implicit_Jitter_Distribution>
     <LibraryReferences>{b29f5ee5-d38d-497f-ae98-ee34c52a5f1c}</LibraryReferences>
-    <Released>true</Released>
+    <Released>false</Released>
     <Title>XBoxControllerUtilities</Title>
-    <ProjectVersion>1.0</ProjectVersion>
+    <ProjectVersion>1.1</ProjectVersion>
     <Author>John Helfrich</Author>
     <Company>NA</Company>
   </PropertyGroup>
   <ItemGroup>
     <Folder Include="DUTs\LowerLevel" />
+    <Folder Include="DUTs\XBox NC" />
     <Folder Include="FBs" />
     <Folder Include="DUTs" />
+    <Folder Include="FBs\NC" />
+    <Folder Include="FBs\Base Gamepad" />
+    <Folder Include="FBs\NC\Joysticks" />
+    <Folder Include="FBs\NC\Buttons" />
+    <Folder Include="FBs\NC\Triggers" />
     <Folder Include="Version" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="DUTs\XBox NC\ST_XBox_Button_NC_Options.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\XBox NC\ST_XBox_Single_Directional_Joystick_NC_Options.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\XBox NC\ST_XBox_Dual_Directional_Joystick_NC_Options.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="DUTs\LowerLevel\ST_XBox_Controller_Buttons_Bits.TcDUT">
       <SubType>Code</SubType>
     </Compile>
@@ -55,7 +70,28 @@
     <Compile Include="DUTs\ST_XBox_Controller_Status.TcDUT">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="FBs\FB_XBox_Controller.TcPOU">
+    <Compile Include="DUTs\XBox NC\ST_XBox_Trigger_NC_Options.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FBs\Base Gamepad\FB_XBox_Controller.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FBs\NC\Buttons\FB_XBox_Single_Button_NC.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FBs\NC\Buttons\FB_XBox_Dual_Button_NC.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FBs\NC\Joysticks\FB_XBox_Dual_Directional_Joystick_NC.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FBs\NC\Joysticks\FB_XBox_Single_Directional_Joystick_NC.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FBs\NC\Triggers\FB_XBox_Dual_Trigger_NC.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FBs\NC\Triggers\FB_XBox_Single_Trigger_NC.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Version\Global_Version.TcGVL">
@@ -63,6 +99,10 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
+    <PlaceholderReference Include="Tc2_MC2">
+      <DefaultResolution>Tc2_MC2, * (Beckhoff Automation GmbH)</DefaultResolution>
+      <Namespace>Tc2_MC2</Namespace>
+    </PlaceholderReference>
     <PlaceholderReference Include="Tc2_Standard">
       <DefaultResolution>Tc2_Standard, * (Beckhoff Automation GmbH)</DefaultResolution>
       <Namespace>Tc2_Standard</Namespace>
@@ -84,8 +124,8 @@
   <ProjectExtensions>
     <PlcProjectOptions>
       <XmlArchive>
-  <Data>
-    <o xml:space="preserve" t="OptionKey">
+        <Data>
+          <o xml:space="preserve" t="OptionKey">
       <v n="Name">"&lt;ProjectRoot&gt;"</v>
       <d n="SubKeys" t="Hashtable" ckt="String" cvt="OptionKey">
         <v>{40450F57-0AA3-4216-96F3-5444ECB29763}</v>
@@ -106,13 +146,13 @@
       </d>
       <d n="Values" t="Hashtable" />
     </o>
-  </Data>
-  <TypeList>
-    <Type n="Hashtable">System.Collections.Hashtable</Type>
-    <Type n="OptionKey">{54dd0eac-a6d8-46f2-8c27-2f43c7e49861}</Type>
-    <Type n="String">System.String</Type>
-  </TypeList>
-</XmlArchive>
+        </Data>
+        <TypeList>
+          <Type n="Hashtable">System.Collections.Hashtable</Type>
+          <Type n="OptionKey">{54dd0eac-a6d8-46f2-8c27-2f43c7e49861}</Type>
+          <Type n="String">System.String</Type>
+        </TypeList>
+      </XmlArchive>
     </PlcProjectOptions>
   </ProjectExtensions>
 </Project>
